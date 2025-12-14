@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top Charts Hebdo - Multi-Plateformes</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Icônes simplifiées
+        const Music = ({ className }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>;
+        const TrendingUp = ({ className }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>;
+        const Play = ({ className }) => <svg className={className} fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>;
+        const Calendar = ({ className }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
+        const Globe = ({ className }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>;
+        const Database = ({ className }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>;
+
+        // Configuration Supabase - REMPLACE PAR TES VRAIES CLÉS !
+        const SUPABASE_URL = 'https://gnezjkncktmywytfbbpc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImduZXpqa25ja3RteXd5dGZiYnBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2NTU5NTEsImV4cCI6MjA4MTIzMTk1MX0.sJFwXIJHVhv_yJFLAbas6TwvMlsYAjbpP05ijDj_Mjo';
+
+        const MusicChartsApp = () => {
+            const [activeTab, setActiveTab] = useState('deezer');
+            const [selectedCountry, setSelectedCountry] = useState('world');
+            const [selectedPeriod, setSelectedPeriod] = useState('weekly');
+            const [currentWeek, setCurrentWeek] = useState('');
+            const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+            const [isPeriodDropdownOpen, setIsPeriodDropdownOpen] = useState(false);
+            const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+            const [periodDropdownPosition, setPeriodDropdownPosition] = useState({ top: 0, left: 0 });
+            const [saveStatus, setSaveStatus] = useState('');
+
+            const countries = [
+                { code: 'world', name: 'Mondial', flag: '🌍' },
+                { code: 'usa', name: 'USA', flag: '🇺🇸' },
+                { code: 'uk', name: 'UK', flag: '🇬🇧' },
+                { code: 'fr', name: 'France', flag: '🇫🇷' },
+                { code: 'it', name: 'Italie', flag: '🇮🇹' },
+                { code: 'es', name: 'Espagne', flag: '🇪🇸' },
+                { code: 'de', name: 'Allemagne', flag: '🇩🇪' },
+                { code: 'be', name: 'Belgique', flag: '🇧🇪' }
+            ];
+
+            const periods = [
+                { code: 'weekly', name: 'Hebdomadaire', icon: '📅' },
+                { code: 'monthly', name: 'Mensuel', icon: '📆' },
+                { code: 'yearly', name: 'Annuel', icon: '🗓️' }
+            ];
+
+            // Données simplifiées pour la démo
+            const worldTracks = {
+                deezer: {
+                    weekly: [
+                        { title: "Lovin On Me", artist: "Jack Harlow", baseStreams: 48.5 },
+                        { title: "Paint The Town Red", artist: "Doja Cat", baseStreams: 45.2 },
+                        { title: "greedy", artist: "Tate McRae", baseStreams: 42.8 },
+                        { title: "Cruel Summer", artist: "Taylor Swift", baseStreams: 41.3 },
+                        { title: "Strangers", artist: "Kenya Grace", baseStreams: 39.7 },
+                        { title: "Snooze", artist: "SZA", baseStreams: 38.4 },
+                        { title: "vampire", artist: "Olivia Rodrigo", baseStreams: 36.9 },
+                        { title: "Water", artist: "Tyla", baseStreams: 35.2 },
+                        { title: "I Remember Everything", artist: "Zach Bryan", baseStreams: 33.8 },
+                        { title: "Lose Control", artist: "Teddy Swims", baseStreams: 32.1 }
+                    ],
+                    monthly: [
+                        { title: "The Fate Of Ophelia", artist: "Taylor Swift", baseStreams: 48.5 },
+                        { title: "Golden", artist: "HUNTR/X", baseStreams: 45.2 },
+                        { title: "Ordinary", artist: "Alex Warren", baseStreams: 42.8 },
+                        { title: "Man I Need", artist: "Olivia Dean", baseStreams: 41.3 },
+                        { title: "Opalite", artist: "Taylor Swift", baseStreams: 39.7 },
+                        { title: "Daisies", artist: "Justin Bieber", baseStreams: 38.4 },
+                        { title: "Mutt", artist: "Leon Thomas", baseStreams: 36.9 },
+                        { title: "Folded", artist: "Kehlani", baseStreams: 35.2 },
+                        { title: "I Got Better", artist: "Morgan Wallen", baseStreams: 33.8 },
+                        { title: "Back To Friends", artist: "sombr", baseStreams: 32.1 }
+                    ],
+                    yearly: [
+                        { title: "APT.", artist: "Rosé & Bruno Mars", baseStreams: 48.5 },
+                        { title: "Die With A Smile", artist: "Lady Gaga & Bruno Mars", baseStreams: 45.2 },
+                        { title: "Ordinary", artist: "Alex Warren", baseStreams: 42.8 },
+                        { title: "Messy", artist: "Lola Young", baseStreams: 41.3 },
+                        { title: "Beautiful Things", artist: "Benson Boone", baseStreams: 39.7 },
+                        { title: "BIRDS OF A FEATHER", artist: "Billie Eilish", baseStreams: 38.4 },
+                        { title: "A Bar Song (Tipsy)", artist: "Shaboozey", baseStreams: 36.9 },
+                        { title: "Anxiety", artist: "Doechii", baseStreams: 35.2 },
+                        { title: "That's So True", artist: "Gracie Abrams", baseStreams: 33.8 },
+                        { title: "Pink Pony Club", artist: "Chappell Roan", baseStreams: 32.1 }
+                    ]
+                },
+                youtube: {
+                    weekly: [
+                        { title: "Paint The Town Red", artist: "Doja Cat", baseStreams: 52.3 },
+                        { title: "Strangers", artist: "Kenya Grace", baseStreams: 49.1 },
+                        { title: "greedy", artist: "Tate McRae", baseStreams: 46.7 },
+                        { title: "Cruel Summer", artist: "Taylor Swift", baseStreams: 44.2 },
+                        { title: "Snooze", artist: "SZA", baseStreams: 41.8 },
+                        { title: "vampire", artist: "Olivia Rodrigo", baseStreams: 39.5 },
+                        { title: "Water", artist: "Tyla", baseStreams: 37.9 },
+                        { title: "Lose Control", artist: "Teddy Swims", baseStreams: 36.4 },
+                        { title: "Flowers", artist: "Miley Cyrus", baseStreams: 34.1 },
+                        { title: "Seven", artist: "Jung Kook ft. Latto", baseStreams: 32.8 }
+                    ],
+                    monthly: [
+                        { title: "The Fate Of Ophelia", artist: "Taylor Swift", baseStreams: 52.3 },
+                        { title: "Golden", artist: "HUNTR/X", baseStreams: 49.1 },
+                        { title: "Ordinary", artist: "Alex Warren", baseStreams: 46.7 },
+                        { title: "Man I Need", artist: "Olivia Dean", baseStreams: 44.2 },
+                        { title: "Opalite", artist: "Taylor Swift", baseStreams: 41.8 },
+                        { title: "Daisies", artist: "Justin Bieber", baseStreams: 39.5 },
+                        { title: "Mutt", artist: "Leon Thomas", baseStreams: 37.9 },
+                        { title: "Folded", artist: "Kehlani", baseStreams: 36.4 },
+                        { title: "I Got Better", artist: "Morgan Wallen", baseStreams: 34.1 },
+                        { title: "Tit For Tat", artist: "Tate McRae", baseStreams: 32.8 }
+                    ],
+                    yearly: [
+                        { title: "APT.", artist: "Rosé & Bruno Mars", baseStreams: 52.3 },
+                        { title: "Die With A Smile", artist: "Lady Gaga & Bruno Mars", baseStreams: 49.1 },
+                        { title: "Luther", artist: "Kendrick Lamar & SZA", baseStreams: 46.7 },
+                        { title: "tv off", artist: "Kendrick Lamar", baseStreams: 44.2 },
+                        { title: "BIRDS OF A FEATHER", artist: "Billie Eilish", baseStreams: 41.8 },
+                        { title: "Spaghetti", artist: "Le Sserafim ft. j-hope", baseStreams: 39.5 },
+                        { title: "Ordinary", artist: "Alex Warren", baseStreams: 37.9 },
+                        { title: "Daisies", artist: "Justin Bieber", baseStreams: 36.4 },
+                        { title: "Golden", artist: "HUNTR/X", baseStreams: 34.1 },
+                        { title: "Anxiety", artist: "Doechii", baseStreams: 32.8 }
+                    ]
+                }
+            };
+
+            const covers = [
+                "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300",
+                "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300",
+                "https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=300",
+                "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=300",
+                "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=300",
+                "https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=300",
+                "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=300",
+                "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300",
+                "https://images.unsplash.com/photo-1445985543470-41fba5c3144a?w=300",
+                "https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=300"
+            ];
+
+            const generateCharts = (platform, country, period) => {
+                const weekNumber = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+                const seed = weekNumber + platform.charCodeAt(0) + country.charCodeAt(0) + period.charCodeAt(0);
+                
+                const tracks = worldTracks[platform][period];
+                const periodMultiplier = period === 'yearly' ? 52 : period === 'monthly' ? 4.33 : 1;
+                
+                return tracks.map((track, index) => {
+                    const variation = (Math.sin(seed + index) * 0.15 + 1);
+                    const baseStreams = track.baseStreams * periodMultiplier;
+                    const finalStreams = baseStreams * variation;
+                    
+                    let streams, unit;
+                    if (finalStreams >= 1000) {
+                        streams = (finalStreams / 1000).toFixed(1);
+                        unit = 'B';
+                    } else {
+                        streams = finalStreams.toFixed(1);
+                        unit = 'M';
+                    }
+                    
+                    const trend = Math.sin(seed + index * 2) > 0 ? '↑' : '↓';
+                    const trendPercent = Math.abs(Math.sin(seed + index * 3) * 15).toFixed(0);
+                    
+                    return {
+                        position: index + 1,
+                        title: track.title,
+                        artist: track.artist,
+                        plays: `${streams}${unit}`,
+                        cover: covers[index],
+                        trend: trend,
+                        trendPercent: `${trendPercent}%`,
+                        isRising: trend === '↑'
+                    };
+                });
+            };
+
+            useEffect(() => {
+                const now = new Date();
+                const startOfYear = new Date(now.getFullYear(), 0, 1);
+                const weekNum = Math.ceil((((now - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
+                
+                if (selectedPeriod === 'weekly') {
+                    setCurrentWeek(`Semaine ${weekNum} - ${now.getFullYear()}`);
+                } else if (selectedPeriod === 'monthly') {
+                    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+                    setCurrentWeek(`${monthNames[now.getMonth()]} ${now.getFullYear()}`);
+                } else {
+                    setCurrentWeek(`Année ${now.getFullYear()}`);
+                }
+            }, [selectedPeriod]);
+
+            const saveChartsToSupabase = async () => {
+                setSaveStatus('Sauvegarde en cours...');
+                try {
+                    const chartsData = currentCharts.map(track => ({
+                        platform: activeTab,
+                        country: selectedCountry,
+                        period: selectedPeriod,
+                        position: track.position,
+                        title: track.title,
+                        artist: track.artist,
+                        plays: track.plays,
+                        trend: track.trend,
+                        trend_percent: track.trendPercent,
+                        is_rising: track.isRising,
+                        created_at: new Date().toISOString()
+                    }));
+
+                    console.log('Envoi:', chartsData);
+
+                    const response = await fetch(`${SUPABASE_URL}/rest/v1/charts`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                            'Prefer': 'return=representation'
+                        },
+                        body: JSON.stringify(chartsData)
+                    });
+
+                    const responseData = await response.json();
+                    console.log('Réponse:', responseData);
+
+                    if (response.ok) {
+                        setSaveStatus('✅ Sauvegardé !');
+                        setTimeout(() => setSaveStatus(''), 3000);
+                    } else {
+                        setSaveStatus(`❌ Erreur: ${responseData.message || 'Inconnue'}`);
+                        setTimeout(() => setSaveStatus(''), 5000);
+                    }
+                } catch (error) {
+                    console.error('Erreur:', error);
+                    setSaveStatus(`❌ Erreur: ${error.message}`);
+                    setTimeout(() => setSaveStatus(''), 5000);
+                }
+            };
+
+            const currentCharts = generateCharts(activeTab, selectedCountry, selectedPeriod);
+            const platformColor = activeTab === 'deezer' ? 'from-purple-600 to-pink-600' : 'from-red-600 to-red-800';
+            const currentCountryData = countries.find(c => c.code === selectedCountry);
+            const currentPeriodData = periods.find(p => p.code === selectedPeriod);
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
+                    {/* Header */}
+                    <div className={`bg-gradient-to-r ${platformColor} p-8 shadow-2xl`}>
+                        <div className="max-w-6xl mx-auto flex items-center justify-between">
+                            <div>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <TrendingUp className="w-10 h-10" />
+                                    <h1 className="text-4xl font-bold">Top Charts Hebdo</h1>
+                                </div>
+                                <p className="text-white/90 text-lg">Les morceaux les plus streamés</p>
+                            </div>
+                            <div className="bg-white/10 backdrop-blur-lg rounded-xl px-6 py-3 flex items-center gap-2">
+                                <Calendar className="w-5 h-5" />
+                                <span className="font-semibold">{currentWeek}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Platform Tabs */}
+                    <div className="max-w-6xl mx-auto px-8 -mt-6">
+                        <div className="bg-gray-800/50 backdrop-blur-lg rounded-2xl p-2 flex gap-2 shadow-xl border border-gray-700">
+                            <button
+                                onClick={() => setActiveTab('deezer')}
+                                className={`flex-1 py-4 px-6 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
+                                    activeTab === 'deezer'
+                                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg scale-105'
+                                        : 'bg-gray-700/30 hover:bg-gray-700/50'
+                                }`}
+                            >
+                                <Music className="w-5 h-5" />
+                                Deezer
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('youtube')}
+                                className={`flex-1 py-4 px-6 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
+                                    activeTab === 'youtube'
+                                        ? 'bg-gradient-to-r from-red-600 to-red-800 shadow-lg scale-105'
+                                        : 'bg-gray-700/30 hover:bg-gray-700/50'
+                                }`}
+                            >
+                                <Play className="w-5 h-5" />
+                                YouTube Music
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Selectors */}
+                    <div className="max-w-6xl mx-auto px-8 py-6">
+                        <div className="bg-gray-800/50 backdrop-blur-lg rounded-2xl p-4 border border-gray-700 flex gap-4 justify-between items-center">
+                            <div className="flex gap-4">
+                                <select
+                                    value={selectedCountry}
+                                    onChange={(e) => setSelectedCountry(e.target.value)}
+                                    className="bg-gray-700 text-white px-4 py-2 rounded-lg"
+                                >
+                                    {countries.map(c => (
+                                        <option key={c.code} value={c.code}>{c.flag} {c.name}</option>
+                                    ))}
+                                </select>
+
+                                <select
+                                    value={selectedPeriod}
+                                    onChange={(e) => setSelectedPeriod(e.target.value)}
+                                    className="bg-gray-700 text-white px-4 py-2 rounded-lg"
+                                >
+                                    {periods.map(p => (
+                                        <option key={p.code} value={p.code}>{p.icon} {p.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <button
+                                onClick={saveChartsToSupabase}
+                                className={`bg-gradient-to-r ${platformColor} text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2`}
+                            >
+                                <Database className="w-4 h-4" />
+                                Sauvegarder
+                            </button>
+                        </div>
+                        {saveStatus && <div className="text-center mt-2">{saveStatus}</div>}
+                    </div>
+
+                    {/* Charts */}
+                    <div className="max-w-6xl mx-auto px-8 pb-12">
+                        <div className="grid gap-4">
+                            {currentCharts.map((track, index) => (
+                                <div
+                                    key={index}
+                                    className="bg-gradient-to-r from-gray-800/80 to-gray-800/40 rounded-2xl p-6 border border-gray-700/50 hover:border-purple-500/50 transition-all"
+                                >
+                                    <div className="flex items-center gap-6">
+                                        <div className={`text-4xl font-black ${
+                                            track.position === 1 ? 'text-yellow-400' :
+                                            track.position === 2 ? 'text-gray-300' :
+                                            track.position === 3 ? 'text-orange-400' :
+                                            'text-gray-500'
+                                        } w-16 text-center`}>
+                                            {track.position}
+                                        </div>
+
+                                        <img
+                                            src={track.cover}
+                                            alt={track.title}
+                                            className="w-24 h-24 rounded-xl shadow-lg"
+                                        />
+
+                                        <div className="flex-1">
+                                            <h3 className="text-2xl font-bold mb-1">{track.title}</h3>
+                                            <p className="text-gray-400 text-lg">{track.artist}</p>
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <span className={`text-sm font-semibold ${track.isRising ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {track.trend} {track.trendPercent}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="text-right">
+                                            <div className={`text-3xl font-bold bg-gradient-to-r ${platformColor} bg-clip-text text-transparent`}>
+                                                {track.plays}
+                                            </div>
+                                            <p className="text-gray-500 text-sm">streams</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<MusicChartsApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>
